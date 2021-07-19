@@ -11,9 +11,8 @@ from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
 from moltin_products import get_products_title
 
 
-_database = None
-
-MENU, INFO, BACK = range(3)
+MENU, INFO = range(2)
+BUT_MENU, BUT_INFO = range(2)
 
 
 def start_handler(update: Update, context: CallbackContext):
@@ -21,7 +20,7 @@ def start_handler(update: Update, context: CallbackContext):
 
     text = "Приветствую тебя в магазине 'crazy_fish_store'!"
 
-    keyboard = [[InlineKeyboardButton("Посмотреть меню", callback_data=str(MENU))]]
+    keyboard = [[InlineKeyboardButton("Посмотреть меню", callback_data=str(BUT_MENU))]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -30,22 +29,22 @@ def start_handler(update: Update, context: CallbackContext):
         text=text,
         reply_markup=reply_markup      
     )
-    return "LIST"
+    return MENU
 
 
-def price_list_handler(update: Update, context: CallbackContext):
+def menu_handler(update: Update, context: CallbackContext):
     query = update.callback_query
     query.answer()
     
     text = "Нажми кнопку на интересующем тебя продукте, чтобы посмотреть информацию о нем"
 
-    keyboard = [[InlineKeyboardButton("определенная рыбка", callback_data=str(INFO))]]
+    keyboard = [[InlineKeyboardButton("определенная рыбка", callback_data=str(BUT_INFO))]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    query.edit_message_text(text=text, reply_markup=reply_markup)
+    query.edit_message_text(text=text, reply_markup=reply_markup, per_message=True)
 
-    return "INFO"
+    return INFO
 
 
 def product_info_handler(update: Update, context: CallbackContext):
@@ -54,40 +53,13 @@ def product_info_handler(update: Update, context: CallbackContext):
     
     text = "Чтобы вернуться в меню, нажмите кнопку"
 
-    keyboard = [[InlineKeyboardButton("Назад", callback_data=str(BACK))]]
+    keyboard = [[InlineKeyboardButton("Назад", callback_data=str(BUT_MENU))]]
 
     reply_markup = InlineKeyboardMarkup(keyboard)    
     
     query.edit_message_text(text=text, reply_markup=reply_markup)
 
-    return "LIST"
-
-
-def handle_users_reply(update: Update, context: CallbackContext):
-    db = get_database_connection()
-
-    user_reply = update.effective_message
-    chat_id = update.effective_message.chat_id
-
-
-    if user_reply == "/start":
-        user_state = "START"
-    else:
-        user_state = db.get(chat_id)
-
-    states_functions = {
-        "START": start_handler,
-        "LIST": price_list_handler,
-        "INFO": product_info_handler,
-    }
-
-    state_handler = states_functions[user_state]
-
-    try:
-        next_state = state_handler
-        db.set(chat_id, next_state)
-    except Exception as err:
-        print(err)
+    return MENU
     
 
 def quit_handler(update: Update, context: CallbackContext):
@@ -102,25 +74,6 @@ def quit_handler(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
-def get_database_connection():
-    global _database
-
-    if _database is None:
-        db_password = os.getenv("REDIS_PASSWORD")
-        db_host = os.getenv("REDIS_HOST")
-        db_port = os.getenv("REDIS_PORT")
-
-        _database = redis.Redis(
-            host = db_host,
-            port = db_port,
-            password = db_password,
-            decode_responses=True,
-            db=0
-        )
-
-    return _database
-
-
 def main():
     load_dotenv()
 
@@ -128,9 +81,22 @@ def main():
     updater = Updater(token=tg_token)
     dp = updater.dispatcher
 
-    # dp.add_handler(CallbackQueryHandler(handle_users_reply))
-    dp.add_handler(CommandHandler('start', handle_users_reply))
+    conv_handler = ConversationHandler(
+        entry_points=[CommandHandler('start', start_handler)],
+
+        states = {
+            MENU: [CallbackQueryHandler(menu_handler, str(BUT_MENU))],
+
+            INFO: [CallbackQueryHandler(product_info_handler, str(BUT_INFO))]
+      
+        },
+
+        fallbacks=[]
+
+    )
     
+    dp.add_handler(conv_handler)
+ 
     updater.start_polling()
     
 if __name__ == "__main__":

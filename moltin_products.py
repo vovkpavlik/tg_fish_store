@@ -18,6 +18,12 @@ def get_products_id(products):
     return products_id
 
 
+def get_products_title(products):
+    products_title = [product["name"] for product in products["data"]]    
+    return products_title
+
+
+
 def update_products(access_token, products_id):
     base_url = "https://api.moltin.com/v2/products/"
     headers = {
@@ -104,7 +110,7 @@ def main():
     # delete_product(moltin_token)
     # products_id = get_products_id(get_products(moltin_token))
     # update_products(moltin_token, products_id)
-    print(get_products_id(get_products(moltin_token)))
+    print(get_products_title(get_products(moltin_token)))
     # pprint(get_products(moltin_token))
 
 
