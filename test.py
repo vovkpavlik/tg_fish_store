@@ -15,8 +15,8 @@ def start_handler(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
 
     keyboard = [
-        [InlineKeyboardButton("Первый стейт 1", callback_data="first_state_1")],
-        [InlineKeyboardButton("Первый стейт 2", callback_data="first_state_2")]
+        [InlineKeyboardButton("Первый стейт", callback_data="first_state")],
+        [InlineKeyboardButton("Выйти", callback_data="exit")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -35,14 +35,12 @@ def first_handler_one(update: Update, context: CallbackContext):
 
     query = update.callback_query
     query.answer()
-    
-    keyboard = [[InlineKeyboardButton("Второй стейт", callback_data="second_state")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    if query.data == "exit":
+        return SECOND
     text = "first_handler_one!\nА теперь перейди ко второму!"
     query.edit_message_text(text=text, reply_markup=reply_markup)
 
-    return SECOND
+    return FIRST
 
 
 def first_handler_two(update: Update, context: CallbackContext):
