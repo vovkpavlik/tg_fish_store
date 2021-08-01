@@ -1,6 +1,6 @@
 import os
 from functools import partial
-
+import requests
 from dotenv import load_dotenv
 import telegram
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -9,7 +9,8 @@ from telegram.ext import (CallbackContext, CommandHandler, ConversationHandler,
 
 from redis_persistence import RedisPersistence
 from moltin import (get_moltin_token, get_products, get_product_info, get_img_url,
-                    add_to_cart, get_cart_info, get_cart_items, delete_cart_item)
+                    add_to_cart, get_cart_info, get_cart_items, delete_cart_item,
+                    create_customer)
 
 
 MENU, PRODUCT_INFO, CART, WAITING_EMAIL = range(4)
@@ -181,6 +182,10 @@ def cart_info_handler(moltin_token, update: Update, context: CallbackContext):
         send_showcase_keyboard(moltin_token, update, context)
         return MENU    
     if query.data =="purchase":
+        context.bot.delete_message(
+            chat_id,
+            message_id=update.effective_message.message_id
+        )
         context.bot.send_message(
             chat_id=chat_id,
             text="Напишите адрес своей электронной почты, чтобы мы могли прислать вам подробности"     
@@ -197,27 +202,24 @@ def cart_info_handler(moltin_token, update: Update, context: CallbackContext):
     return CART
 
     
-def get_email_handler(update: Update, context: CallbackContext):
+def get_email_handler(moltin_token, update: Update, context: CallbackContext):
     chat_id = update.effective_message.chat_id
     users_message = update.effective_message.text  
 
+    create_customer(moltin_token, chat_id, users_message)
+    
     context.bot.send_message(
         chat_id=chat_id,
-        text=f"Ты прислал эту почту: {users_message}"     
+        text=f"Получена почта: {users_message}"     
     )
 
-
-def quit_handler(update: Update, context: CallbackContext):
-    query = update.callback_query
-    query.answer()
-
-    chat_id = update.callback_query.message.chat_id
-    
-    text = "Что ж... Твоя жизнь, тебе решать.\nУвидимся!"
-    context.bot.send_message(chat_id=chat_id, text=text)
-
-    return ConversationHandler.END
-
+def get_cust(access_token):
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+    base_url = "https://api.moltin.com/v2/customers"
+    response = requests.get(base_url, headers=headers)
+    response.raise_for_status()
 
 def main():
     load_dotenv()
@@ -231,7 +233,7 @@ def main():
     moltin_id = os.getenv("MOLTIN_ID")
     moltin_secret = os.getenv("MOLTIN_SECRET")
     moltin_token = get_moltin_token(moltin_secret, moltin_id)
-
+    
     tg_token = os.getenv("TG_TOKEN")
     # updater = Updater(token=tg_token, persistence=persistence)
     updater = Updater(token=tg_token)
@@ -241,6 +243,7 @@ def main():
     partial_menu_handler = partial(menu_handler,  moltin_token)
     partial_product_info_handler = partial(product_info_handler, moltin_token)
     partial_cart_info_handler= partial(cart_info_handler, moltin_token)
+    partial_get_email_handler= partial(get_email_handler, moltin_token)
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', partial_start_handler)],
@@ -252,20 +255,18 @@ def main():
 
             CART: [CallbackQueryHandler(partial_cart_info_handler)],
 
-            WAITING_EMAIL: [MessageHandler(Filters.text, get_email_handler)]
+            WAITING_EMAIL: [MessageHandler(Filters.text, partial_get_email_handler)]
       
         },
 
         fallbacks=[],
-
+    
         # name='my_conversation',
         # persistent=True
     )
-    
     dp.add_handler(conv_handler)
  
     updater.start_polling()
     
 if __name__ == "__main__":
     main()
-    

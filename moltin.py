@@ -1,6 +1,5 @@
 import requests
 
-
 def get_img_url(access_token, img_id):
     base_url = "https://api.moltin.com/v2/files/"
 
@@ -112,3 +111,23 @@ def delete_cart_item(access_token, cart_id, product_id):
     response = requests.delete(base_url, headers=headers)
     response.raise_for_status()
     
+
+def create_customer(access_token, user_id, user_email):
+    base_url = "https://api.moltin.com/v2/customers"
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+    }
+    data = {
+        "data": {
+            "type": "customer",
+            "name": f"customer_{user_id}",
+            "email": user_email,
+            "password": user_id
+
+        }
+    } 
+
+    response = requests.post(base_url, headers=headers, data=data)
+    print(response)
+    response.raise_for_status()
