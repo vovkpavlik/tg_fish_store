@@ -1,5 +1,8 @@
 import requests
 
+from pprint import pprint
+
+
 def get_img_url(access_token, img_id):
     base_url = "https://api.moltin.com/v2/files/"
 
@@ -40,13 +43,15 @@ def get_products(access_token):
 
 def get_moltin_token(secret, id):
     base_url = "https://api.moltin.com/oauth/access_token"
+    
     data = {
-        "client_id": id,
+        "grant_type": "client_credentials",
         "client_secret": secret,
-        "grant_type": "client_credentials"
+        "client_id": id      
     }
 
     moltin_login = requests.post(base_url, data=data)
+    # pprint(moltin_login.json())
     moltin_login.raise_for_status()
 
     return moltin_login.json()["access_token"]
@@ -126,10 +131,8 @@ def create_customer(access_token, user_id, user_email):
             "name": f"customer_{user_id}",
             "email": user_email,
             "password": str(user_id)
-
         }
     } 
 
     response = requests.post(base_url, headers=headers, json=data)
-    print(response.json())
     response.raise_for_status()

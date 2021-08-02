@@ -1,7 +1,6 @@
 import os
 from functools import partial
 
-import requests
 from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (CallbackContext, CallbackQueryHandler,
@@ -11,7 +10,9 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
 from moltin import (add_to_cart, create_customer, delete_cart_item,
                     get_img_url, get_moltin_token, get_product_info)
 from keyboards import send_showcase_keyboard, send_cart_keyboard
+
 from redis_persistence import RedisPersistence
+
 
 MENU, PRODUCT_INFO, CART, WAITING_EMAIL = range(4)
 
@@ -134,12 +135,6 @@ def get_email_handler(moltin_token, update: Update, context: CallbackContext):
 
 def main():
     load_dotenv()
-   
-    # redis = RedisPersistence(
-    #     host=os.getenv('REDIS_HOST'),
-    #     port=int(os.getenv('REDIS_PORT')),
-    #     password=os.getenv('REDIS_PASSWORD')  # опциональный аргумент
-    # )
          
     # persistence = RedisPersistence(
     #     host=os.getenv('REDIS_HOST'),
@@ -148,10 +143,11 @@ def main():
     # )
      
     moltin_id = os.getenv("MOLTIN_ID")
-    moltin_secret = os.getenv("MOLTIN_SECRET")
+    moltin_secret = os.getenv("MOLTIN_SECRET")   
     moltin_token = get_moltin_token(moltin_secret, moltin_id)
     
     tg_token = os.getenv("TG_TOKEN")
+
     # updater = Updater(token=tg_token, persistence=persistence)
     updater = Updater(token=tg_token)
     dp = updater.dispatcher
