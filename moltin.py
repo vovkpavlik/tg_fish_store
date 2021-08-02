@@ -117,17 +117,19 @@ def create_customer(access_token, user_id, user_email):
     
     headers = {
         "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
     }
+
     data = {
         "data": {
             "type": "customer",
             "name": f"customer_{user_id}",
             "email": user_email,
-            "password": user_id
+            "password": str(user_id)
 
         }
     } 
 
-    response = requests.post(base_url, headers=headers, data=data)
-    print(response)
+    response = requests.post(base_url, headers=headers, json=data)
+    print(response.json())
     response.raise_for_status()
