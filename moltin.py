@@ -1,7 +1,5 @@
 import requests
 
-from pprint import pprint
-
 
 def get_img_url(access_token, img_id):
     base_url = "https://api.moltin.com/v2/files/"
@@ -41,7 +39,7 @@ def get_products(access_token):
     return list_products.json()
 
 
-def get_moltin_token(secret, id):
+def get_moltin_token(redis, secret, id):
     base_url = "https://api.moltin.com/oauth/access_token"
     
     data = {
@@ -50,11 +48,16 @@ def get_moltin_token(secret, id):
         "client_id": id      
     }
 
-    moltin_login = requests.post(base_url, data=data)
-    # pprint(moltin_login.json())
-    moltin_login.raise_for_status()
+    response = requests.post(base_url, data=data)
+    response.raise_for_status()
+    
+    token = response.json()["access_token"]
+    token_time = response.json()["expires_in"]
+    
+    redis.set("new_token", token, ex=token_time-10)
+    
+    return response.json()["access_token"]
 
-    return moltin_login.json()["access_token"]
 
 
 def add_to_cart(access_token, id, sku, quantity):    
