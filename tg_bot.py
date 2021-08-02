@@ -131,13 +131,6 @@ def get_email_handler(moltin_token, update: Update, context: CallbackContext):
         text=f"Получена почта: {users_message}"     
     )
 
-def get_cust(access_token):
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
-    base_url = "https://api.moltin.com/v2/customers"
-    response = requests.get(base_url, headers=headers)
-    response.raise_for_status()
 
 def main():
     load_dotenv()
