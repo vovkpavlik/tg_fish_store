@@ -54,10 +54,14 @@ def get_moltin_token(redis, secret, id):
     token = response.json()["access_token"]
     token_time = response.json()["expires_in"]
     
-    redis.set("new_token", token, ex=token_time-10)
+    redis.set("moltin_token", token, ex=token_time-10)
     
     return response.json()["access_token"]
 
+
+def check_for_token(redis, moltin_secret, moltin_id):
+    if not redis.get("moltin_token"):
+        get_moltin_token(redis, moltin_secret, moltin_id)
 
 
 def add_to_cart(access_token, id, sku, quantity):    

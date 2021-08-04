@@ -7,17 +7,18 @@ from telegram.ext import (CallbackContext, CallbackQueryHandler,
                           CommandHandler, ConversationHandler, Filters,
                           MessageHandler, Updater)
 
-from moltin import (add_to_cart, create_customer, delete_cart_item,
-                    get_img_url, get_moltin_token, get_product_info)
-from keyboards import send_showcase_keyboard, send_cart_keyboard
-
+from keyboards import send_cart_keyboard, send_showcase_keyboard
+from moltin import (add_to_cart, check_for_token, create_customer,
+                    delete_cart_item, get_img_url, get_product_info)
 from redis_persistence import RedisPersistence
 
 
 MENU, PRODUCT_INFO, CART, WAITING_EMAIL = range(4)
 
 
-def start_handler(moltin_token, update: Update, context: CallbackContext):
+def start_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: CallbackContext):
+    check_for_token(redis_conn, moltin_secret, moltin_id)
+
     chat_id = update.effective_message.chat_id
     
     context.bot.send_message(
@@ -25,14 +26,21 @@ def start_handler(moltin_token, update: Update, context: CallbackContext):
         text="Приветствую тебя в магазине 'Crazy Fish Store!'"     
     )
 
-    send_showcase_keyboard(moltin_token, update, context)
+    send_showcase_keyboard(redis_conn, update, context)
     
     return MENU
 
 
-def menu_handler(moltin_token, update: Update, context: CallbackContext):
+def menu_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: CallbackContext):
+    check_for_token(redis_conn, moltin_secret, moltin_id)
+    moltin_token = redis_conn.get("moltin_token")
+
     chat_id = update.effective_message.chat_id
     query = update.callback_query
+
+    if query.data == "go_to_cart":
+        send_cart_keyboard(redis_conn, update, context)
+        return CART 
 
     product_data = get_product_info(moltin_token, query.data)
 
@@ -75,15 +83,18 @@ def menu_handler(moltin_token, update: Update, context: CallbackContext):
     return PRODUCT_INFO
     
 
-def product_info_handler(moltin_token, update: Update, context: CallbackContext):
+def product_info_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: CallbackContext):
+    check_for_token(redis_conn, moltin_secret, moltin_id)
+    moltin_token = redis_conn.get("moltin_token")
+    
     query = update.callback_query
     chat_id = update.effective_message.chat_id
 
     if query.data == "back_to_menu":
-        send_showcase_keyboard(moltin_token, update, context)
+        send_showcase_keyboard(redis_conn, update, context)
         return MENU
     if query.data == "go_to_cart":
-        send_cart_keyboard(moltin_token, update, context)
+        send_cart_keyboard(redis_conn, update, context)
         return CART
 
     quantity, product_id = query.data.split("/")    
@@ -97,12 +108,15 @@ def product_info_handler(moltin_token, update: Update, context: CallbackContext)
     return PRODUCT_INFO
 
 
-def cart_info_handler(moltin_token, update: Update, context: CallbackContext):
+def cart_info_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: CallbackContext):
+    check_for_token(redis_conn, moltin_secret, moltin_id)
+    moltin_token = redis_conn.get("moltin_token")    
+    
     query = update.callback_query
     chat_id = update.effective_message.chat_id
     
     if query.data == "back_to_menu":
-        send_showcase_keyboard(moltin_token, update, context)
+        send_showcase_keyboard(redis_conn, update, context)
         return MENU    
     if query.data =="purchase":       
         context.bot.send_message(
@@ -116,47 +130,53 @@ def cart_info_handler(moltin_token, update: Update, context: CallbackContext):
     delete_cart_item(moltin_token, chat_id, item_id)
     query.answer(f"Товар {product_name} удален.")
 
-    send_cart_keyboard(moltin_token, update, context)
+    send_cart_keyboard(redis_conn, update, context)
 
     return CART
 
     
-def get_email_handler(moltin_token, update: Update, context: CallbackContext):
-    chat_id = update.effective_message.chat_id
-    users_message = update.effective_message.text  
-
-    create_customer(moltin_token, chat_id, users_message)
+def get_email_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: CallbackContext):
+    check_for_token(redis_conn, moltin_secret, moltin_id)
+    moltin_token = redis_conn.get("moltin_token")        
     
+    chat_id = update.effective_message.chat_id
+    users_message = update.effective_message.text
+
+    create_customer(moltin_token, chat_id, users_message)   
+
+    text = f"Получена почта: {users_message}\nБлагодарю за покупки :)"   
+
     context.bot.send_message(
         chat_id=chat_id,
-        text=f"Получена почта: {users_message}"     
-    )
+        text=text     
+    ) 
+    
+    return ConversationHandler.END
 
 
 def main():
     load_dotenv()
-         
-    # persistence = RedisPersistence(
-    #     host=os.getenv('REDIS_HOST'),
-    #     port=int(os.getenv('REDIS_PORT')),
-    #     password=os.getenv('REDIS_PASSWORD')  # опциональный аргумент
-    # )
-     
+  
+    persistence = RedisPersistence(
+        host=os.getenv('REDIS_HOST'),
+        port=int(os.getenv('REDIS_PORT')),
+        password=os.getenv('REDIS_PASSWORD')
+    )
+    redis_conn = persistence.get_redis_connection()
+
     moltin_id = os.getenv("MOLTIN_ID")
     moltin_secret = os.getenv("MOLTIN_SECRET")   
-    moltin_token = get_moltin_token(moltin_secret, moltin_id)
     
     tg_token = os.getenv("TG_TOKEN")
 
-    # updater = Updater(token=tg_token, persistence=persistence)
-    updater = Updater(token=tg_token)
+    updater = Updater(token=tg_token, persistence=persistence)
     dp = updater.dispatcher
 
-    partial_start_handler = partial(start_handler, moltin_token)
-    partial_menu_handler = partial(menu_handler,  moltin_token)
-    partial_product_info_handler = partial(product_info_handler, moltin_token)
-    partial_cart_info_handler= partial(cart_info_handler, moltin_token)
-    partial_get_email_handler= partial(get_email_handler, moltin_token)
+    partial_start_handler = partial(start_handler, redis_conn, moltin_secret, moltin_id)
+    partial_menu_handler = partial(menu_handler,  redis_conn, moltin_secret, moltin_id)
+    partial_product_info_handler = partial(product_info_handler, redis_conn, moltin_secret, moltin_id)
+    partial_cart_info_handler= partial(cart_info_handler, redis_conn, moltin_secret, moltin_id)
+    partial_get_email_handler= partial(get_email_handler, redis_conn, moltin_secret, moltin_id)
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', partial_start_handler)],
@@ -174,13 +194,13 @@ def main():
 
         fallbacks=[],
     
-        # name='my_conversation',
-        # persistent=True
+        name = "__name__",
+        persistent = True
     )
 
     dp.add_handler(conv_handler)
- 
+
     updater.start_polling()
-    
+
 if __name__ == "__main__":
     main()

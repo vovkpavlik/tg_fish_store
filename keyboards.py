@@ -5,11 +5,15 @@ from telegram.ext import CallbackContext
 from moltin import get_cart_info, get_cart_items, get_products
 
 
-def send_showcase_keyboard(moltin_token, update: Update, context: CallbackContext):
+def send_showcase_keyboard(redis, update: Update, context: CallbackContext):
+    moltin_token = redis.get("moltin_token")
+
     chat_id = update.effective_message.chat_id
 
     text = "Сделай свой выбор."    
-    keyboard = []
+    keyboard = [
+        [InlineKeyboardButton("Перейти в корзину", callback_data="go_to_cart")],
+    ]
     
     for product in get_products(moltin_token)["data"]:
         product_button = [InlineKeyboardButton(product["name"], callback_data=product["id"])]
@@ -29,7 +33,9 @@ def send_showcase_keyboard(moltin_token, update: Update, context: CallbackContex
     )
 
 
-def send_cart_keyboard(moltin_token, update: Update, context: CallbackContext):
+def send_cart_keyboard(redis, update: Update, context: CallbackContext):
+    moltin_token = redis.get("moltin_token")
+
     chat_id = update.effective_message.chat_id
     
     cart_items = get_cart_items(moltin_token, chat_id)
