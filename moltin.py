@@ -8,10 +8,10 @@ def get_img_url(access_token, img_id):
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
-    img_info = requests.get(f"{base_url}{img_id}", headers=headers)
-    img_info.raise_for_status()
+    img = requests.get(f"{base_url}{img_id}", headers=headers)
+    img.raise_for_status()
 
-    return img_info.json()["data"]["link"]["href"]
+    return img.json()["data"]["link"]["href"]
 
 
 def get_product_info(access_token, product_id):
@@ -22,10 +22,10 @@ def get_product_info(access_token, product_id):
         "Content-Type": "application/json"
     }
 
-    product_info = requests.get(f"{base_url}{product_id}", headers=headers)
-    product_info.raise_for_status()
+    product = requests.get(f"{base_url}{product_id}", headers=headers)
+    product.raise_for_status()
 
-    return product_info.json()["data"]
+    return product.json()["data"]
 
 
 def get_products(access_token):
@@ -33,19 +33,19 @@ def get_products(access_token):
     headers = {
         "Authorization": access_token,
     }
-    list_products = requests.get(base_url, headers=headers)
-    list_products.raise_for_status()
+    products = requests.get(base_url, headers=headers)
+    products.raise_for_status()
 
-    return list_products.json()
+    return products.json()
 
 
-def get_moltin_token(redis, secret, id):
+def get_moltin_token(secret, moltin_id):
     base_url = "https://api.moltin.com/oauth/access_token"
     
     data = {
         "grant_type": "client_credentials",
         "client_secret": secret,
-        "client_id": id      
+        "client_id": moltin_id      
     }
 
     response = requests.post(base_url, data=data)
@@ -53,15 +53,17 @@ def get_moltin_token(redis, secret, id):
     
     token = response.json()["access_token"]
     token_time = response.json()["expires_in"]
-    
-    redis.set("moltin_token", token, ex=token_time-10)
-    
-    return response.json()["access_token"]
+       
+    return token, token_time
 
 
-def check_for_token(redis, moltin_secret, moltin_id):
-    if not redis.get("moltin_token"):
-        get_moltin_token(redis, moltin_secret, moltin_id)
+def get_actual_token(redis, moltin_secret, moltin_id):  
+    token = redis.get("moltin_token")
+    if not token:
+        token, token_time = get_moltin_token(moltin_secret, moltin_id)
+        redis.set("moltin_token", token, ex=token_time-10)
+    
+    return token
 
 
 def add_to_cart(access_token, id, sku, quantity):    
@@ -80,8 +82,8 @@ def add_to_cart(access_token, id, sku, quantity):
         }
     }
 
-    add_to_cart = requests.post(base_url, headers=headers, json=data)
-    add_to_cart.raise_for_status()
+    response = requests.post(base_url, headers=headers, json=data)
+    response.raise_for_status()
 
 
 def get_cart_info(access_token, cart_id):
