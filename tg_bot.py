@@ -42,16 +42,16 @@ def menu_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: 
         send_cart_keyboard(moltin_token, update, context)
         return CART 
 
-    product_data = get_product_info(moltin_token, query.data)
+    product = get_product_info(moltin_token, query.data)
 
     img_url = get_img_url(
         moltin_token, 
-        product_data["relationships"]["main_image"]["data"]["id"]
+        product["relationships"]["main_image"]["data"]["id"]
     )
     
-    product_name = product_data["name"]
-    product_description = product_data["description"]
-    product_price = product_data["price"][0]["amount"] / 100
+    product_name = product["name"]
+    product_description = product["description"]
+    product_price = product["price"][0]["amount"] / 100
 
     text = f"""
         Все, что вам нужно знать об экземпляре {product_name}: \n\n
@@ -97,9 +97,9 @@ def product_info_handler(redis_conn, moltin_secret, moltin_id, update: Update, c
         return CART
 
     quantity, product_id = query.data.split("/")    
-    product_data = get_product_info(moltin_token, product_id)
-    product_name = product_data["name"]
-    sku = product_data["sku"]
+    product = get_product_info(moltin_token, product_id)
+    product_name = product["name"]
+    sku = product["sku"]
     
     add_to_cart(moltin_token, chat_id, sku, int(quantity))
     query.answer(f"Добавлено {quantity} шт. товара {product_name}.")
@@ -129,7 +129,7 @@ def cart_info_handler(redis_conn, moltin_secret, moltin_id, update: Update, cont
 
     send_cart_keyboard(moltin_token, update, context)
     query.answer(f"Товар {product_name} удален.")
-    
+
     return CART
 
     
