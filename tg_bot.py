@@ -70,14 +70,14 @@ def menu_handler(redis_conn, moltin_secret, moltin_id, update: Update, context: 
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.bot.delete_message(
-        chat_id,
-        message_id=update.effective_message.message_id
-    )
     context.bot.send_photo(chat_id, 
         img_url, 
         reply_markup=reply_markup, 
         caption=text
+    )
+    context.bot.delete_message(
+        chat_id,
+        message_id=update.effective_message.message_id
     )
 
     return PRODUCT_INFO
@@ -126,10 +126,10 @@ def cart_info_handler(redis_conn, moltin_secret, moltin_id, update: Update, cont
     item_id, product_name = query.data.split("/")
 
     delete_cart_item(moltin_token, chat_id, item_id)
-    query.answer(f"Товар {product_name} удален.")
 
     send_cart_keyboard(moltin_token, update, context)
-
+    query.answer(f"Товар {product_name} удален.")
+    
     return CART
 
     

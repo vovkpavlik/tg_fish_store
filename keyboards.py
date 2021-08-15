@@ -20,16 +20,15 @@ def send_showcase_keyboard(moltin_token, update: Update, context: CallbackContex
     
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.bot.delete_message(
-        chat_id,
-        message_id=update.effective_message.message_id
-    )
     context.bot.send_message(
         chat_id,
         text=text,
         reply_markup=reply_markup      
     )
-
+    context.bot.delete_message(
+        chat_id,
+        message_id=update.effective_message.message_id
+    )
 
 def send_cart_keyboard(moltin_token, update: Update, context: CallbackContext):
     chat_id = update.effective_message.chat_id
@@ -73,14 +72,14 @@ def send_cart_keyboard(moltin_token, update: Update, context: CallbackContext):
         )
 
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    context.bot.delete_message(
-        chat_id,
-        message_id=update.effective_message.message_id
-    )
+
     context.bot.send_message(
         chat_id,
         text=message_text,
         parse_mode=telegram.ParseMode.MARKDOWN,
         reply_markup=reply_markup      
+    )
+    context.bot.delete_message(
+        chat_id,
+        message_id=update.effective_message.message_id
     )
